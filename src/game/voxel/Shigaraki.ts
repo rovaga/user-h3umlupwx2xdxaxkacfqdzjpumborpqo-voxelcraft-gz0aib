@@ -150,79 +150,122 @@ export class Shigaraki {
     });
 
     // Wrist (positioned lower, connecting to arm area)
-    const wristGeometry = new THREE.BoxGeometry(0.12, 0.15, 0.08);
+    const wristGeometry = new THREE.BoxGeometry(0.1, 0.12, 0.08);
     const wrist = new THREE.Mesh(wristGeometry, handMaterial);
-    wrist.position.set(0.12, 0.75, 0.12);
-    wrist.rotation.z = 0.3; // Angled upward
+    wrist.position.set(0.1, 0.7, 0.1);
+    wrist.rotation.z = 0.4; // Angled upward toward face
     wrist.castShadow = true;
     handGroup.add(wrist);
 
     // Golden rectangle on wrist (decorative element)
-    const goldenRectGeometry = new THREE.BoxGeometry(0.08, 0.12, 0.01);
+    const goldenRectGeometry = new THREE.BoxGeometry(0.08, 0.1, 0.01);
     const goldenMaterial = new THREE.MeshStandardMaterial({ 
       color: 0xffd700, // Gold color
       roughness: 0.3,
       metalness: 0.8
     });
     const goldenRect = new THREE.Mesh(goldenRectGeometry, goldenMaterial);
-    goldenRect.position.set(0.12, 0.75, 0.17); // On top of wrist
-    goldenRect.rotation.z = 0.3; // Match wrist rotation
+    goldenRect.position.set(0.1, 0.7, 0.15); // On top of wrist
+    goldenRect.rotation.z = 0.4; // Match wrist rotation
     handGroup.add(goldenRect);
 
-    // Palm (larger, covering mouth area - positioned so palm is in mouth)
-    const palmGeometry = new THREE.BoxGeometry(0.2, 0.24, 0.08);
+    // Palm (covering lower face/mouth area)
+    const palmGeometry = new THREE.BoxGeometry(0.18, 0.2, 0.06);
     const palm = new THREE.Mesh(palmGeometry, handMaterial);
-    palm.position.set(0.15, 0.92, 0.25); // Covering mouth area
-    palm.rotation.z = -0.15; // Slight tilt
-    palm.rotation.x = 0.1; // Slight forward tilt
+    palm.position.set(0.12, 0.88, 0.22); // Covering mouth area
+    palm.rotation.z = -0.1; // Slight tilt
+    palm.rotation.x = 0.15; // Forward tilt to cover face
     palm.castShadow = true;
     handGroup.add(palm);
 
-    // Thumb (positioned to the side, wrapping around face)
-    const thumbGeometry = new THREE.BoxGeometry(0.06, 0.13, 0.05);
-    const thumb = new THREE.Mesh(thumbGeometry, handMaterial);
-    thumb.position.set(0.25, 0.88, 0.22);
-    thumb.rotation.z = 0.5;
-    thumb.rotation.x = -0.3;
-    thumb.rotation.y = 0.2;
-    thumb.castShadow = true;
-    handGroup.add(thumb);
+    // Thumb (positioned to the left side, wrapping around face)
+    // Thumb base
+    const thumbBaseGeometry = new THREE.BoxGeometry(0.05, 0.08, 0.05);
+    const thumbBase = new THREE.Mesh(thumbBaseGeometry, handMaterial);
+    thumbBase.position.set(0.22, 0.85, 0.2);
+    thumbBase.rotation.z = 0.6;
+    thumbBase.rotation.x = -0.2;
+    thumbBase.rotation.y = 0.3;
+    thumbBase.castShadow = true;
+    handGroup.add(thumbBase);
+    
+    // Thumb tip (extended)
+    const thumbTipGeometry = new THREE.BoxGeometry(0.04, 0.1, 0.04);
+    const thumbTip = new THREE.Mesh(thumbTipGeometry, handMaterial);
+    thumbTip.position.set(0.26, 0.82, 0.18);
+    thumbTip.rotation.z = 0.8;
+    thumbTip.rotation.x = -0.3;
+    thumbTip.rotation.y = 0.4;
+    thumbTip.castShadow = true;
+    handGroup.add(thumbTip);
 
-    // Index finger (open/spread, positioned to reveal left eye)
-    const indexFingerGeometry = new THREE.BoxGeometry(0.05, 0.15, 0.04);
-    const indexFinger = new THREE.Mesh(indexFingerGeometry, handMaterial);
-    indexFinger.position.set(0.18, 1.06, 0.28); // Above left eye area
-    indexFinger.rotation.z = -0.4; // Spread outward
-    indexFinger.rotation.x = 0.1;
-    indexFinger.castShadow = true;
-    handGroup.add(indexFinger);
+    // Index finger (first finger, spread open - positioned above left eye area)
+    const indexFingerBaseGeometry = new THREE.BoxGeometry(0.04, 0.08, 0.04);
+    const indexFingerBase = new THREE.Mesh(indexFingerBaseGeometry, handMaterial);
+    indexFingerBase.position.set(0.18, 0.98, 0.25);
+    indexFingerBase.rotation.z = -0.3; // Spread outward
+    indexFingerBase.rotation.x = 0.1;
+    indexFingerBase.castShadow = true;
+    handGroup.add(indexFingerBase);
+    
+    const indexFingerTipGeometry = new THREE.BoxGeometry(0.04, 0.12, 0.04);
+    const indexFingerTip = new THREE.Mesh(indexFingerTipGeometry, handMaterial);
+    indexFingerTip.position.set(0.19, 1.08, 0.27);
+    indexFingerTip.rotation.z = -0.4; // Spread outward
+    indexFingerTip.rotation.x = 0.15;
+    indexFingerTip.castShadow = true;
+    handGroup.add(indexFingerTip);
 
-    // Middle finger (open/spread, positioned between eyes)
-    const middleFingerGeometry = new THREE.BoxGeometry(0.05, 0.17, 0.04);
-    const middleFinger = new THREE.Mesh(middleFingerGeometry, handMaterial);
-    middleFinger.position.set(0.15, 1.09, 0.28); // Between eyes
-    middleFinger.rotation.z = -0.1; // Slightly spread
-    middleFinger.rotation.x = 0.1;
-    middleFinger.castShadow = true;
-    handGroup.add(middleFinger);
+    // Middle finger (longest finger, spread open - positioned at center/forehead)
+    const middleFingerBaseGeometry = new THREE.BoxGeometry(0.04, 0.08, 0.04);
+    const middleFingerBase = new THREE.Mesh(middleFingerBaseGeometry, handMaterial);
+    middleFingerBase.position.set(0.14, 1.0, 0.25);
+    middleFingerBase.rotation.z = -0.05; // Slightly spread
+    middleFingerBase.rotation.x = 0.1;
+    middleFingerBase.castShadow = true;
+    handGroup.add(middleFingerBase);
+    
+    const middleFingerTipGeometry = new THREE.BoxGeometry(0.04, 0.14, 0.04);
+    const middleFingerTip = new THREE.Mesh(middleFingerTipGeometry, handMaterial);
+    middleFingerTip.position.set(0.14, 1.12, 0.27);
+    middleFingerTip.rotation.z = -0.1; // Slightly spread
+    middleFingerTip.rotation.x = 0.15;
+    middleFingerTip.castShadow = true;
+    handGroup.add(middleFingerTip);
 
-    // Ring finger (open/spread, positioned to reveal right eye)
-    const ringFingerGeometry = new THREE.BoxGeometry(0.05, 0.15, 0.04);
-    const ringFinger = new THREE.Mesh(ringFingerGeometry, handMaterial);
-    ringFinger.position.set(0.12, 1.06, 0.28); // Above right eye area
-    ringFinger.rotation.z = 0.2; // Spread outward
-    ringFinger.rotation.x = 0.1;
-    ringFinger.castShadow = true;
-    handGroup.add(ringFinger);
+    // Ring finger (fourth finger, spread open - positioned above right eye area)
+    const ringFingerBaseGeometry = new THREE.BoxGeometry(0.04, 0.08, 0.04);
+    const ringFingerBase = new THREE.Mesh(ringFingerBaseGeometry, handMaterial);
+    ringFingerBase.position.set(0.10, 0.98, 0.25);
+    ringFingerBase.rotation.z = 0.25; // Spread outward
+    ringFingerBase.rotation.x = 0.1;
+    ringFingerBase.castShadow = true;
+    handGroup.add(ringFingerBase);
+    
+    const ringFingerTipGeometry = new THREE.BoxGeometry(0.04, 0.12, 0.04);
+    const ringFingerTip = new THREE.Mesh(ringFingerTipGeometry, handMaterial);
+    ringFingerTip.position.set(0.09, 1.08, 0.27);
+    ringFingerTip.rotation.z = 0.3; // Spread outward
+    ringFingerTip.rotation.x = 0.15;
+    ringFingerTip.castShadow = true;
+    handGroup.add(ringFingerTip);
 
-    // Pinky finger (open/spread)
-    const pinkyFingerGeometry = new THREE.BoxGeometry(0.04, 0.13, 0.04);
-    const pinkyFinger = new THREE.Mesh(pinkyFingerGeometry, handMaterial);
-    pinkyFinger.position.set(0.09, 1.03, 0.28);
-    pinkyFinger.rotation.z = 0.4; // Spread outward
-    pinkyFinger.rotation.x = 0.1;
-    pinkyFinger.castShadow = true;
-    handGroup.add(pinkyFinger);
+    // Pinky finger (fifth finger, smallest, spread open - positioned to the right)
+    const pinkyFingerBaseGeometry = new THREE.BoxGeometry(0.035, 0.07, 0.035);
+    const pinkyFingerBase = new THREE.Mesh(pinkyFingerBaseGeometry, handMaterial);
+    pinkyFingerBase.position.set(0.06, 0.95, 0.25);
+    pinkyFingerBase.rotation.z = 0.5; // Spread outward
+    pinkyFingerBase.rotation.x = 0.1;
+    pinkyFingerBase.castShadow = true;
+    handGroup.add(pinkyFingerBase);
+    
+    const pinkyFingerTipGeometry = new THREE.BoxGeometry(0.035, 0.11, 0.035);
+    const pinkyFingerTip = new THREE.Mesh(pinkyFingerTipGeometry, handMaterial);
+    pinkyFingerTip.position.set(0.05, 1.04, 0.27);
+    pinkyFingerTip.rotation.z = 0.6; // Spread outward
+    pinkyFingerTip.rotation.x = 0.15;
+    pinkyFingerTip.castShadow = true;
+    handGroup.add(pinkyFingerTip);
 
     // Position the entire hand group relative to head
     // The hand should be positioned to cover the face from the side
