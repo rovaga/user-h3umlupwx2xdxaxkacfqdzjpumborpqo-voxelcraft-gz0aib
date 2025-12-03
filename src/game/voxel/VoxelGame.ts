@@ -9,11 +9,13 @@ import type { Engine } from '../../engine/Engine';
 import type { Game } from '../../engine/Types';
 import { VoxelWorld } from './VoxelWorld';
 import { FirstPersonCamera } from './FirstPersonCamera';
+import { Shigaraki } from './Shigaraki';
 
 export class VoxelGame implements Game {
   private engine: Engine;
   private voxelWorld: VoxelWorld;
   private cameraController: FirstPersonCamera;
+  private shigaraki: Shigaraki;
   private raycaster: THREE.Raycaster;
   private mouse: THREE.Vector2;
   private selectedBlockType: number = 1; // Default block type
@@ -40,6 +42,10 @@ export class VoxelGame implements Game {
 
     // Generate initial terrain
     this.generateTerrain();
+
+    // Create Shigaraki character (positioned on top of ground blocks at y=1)
+    // Character mesh center is at y=1.6 so feet (at y=-0.6 relative) are at y=1
+    this.shigaraki = new Shigaraki(engine, new THREE.Vector3(5, 1.6, 5));
 
     // Setup mouse click handlers for block placement/destruction
     this.setupInputHandlers();
@@ -290,6 +296,9 @@ export class VoxelGame implements Game {
     // Update camera controller (handles movement and rotation)
     this.cameraController.update(deltaTime);
 
+    // Update Shigaraki character
+    this.shigaraki.update(deltaTime);
+
     // Update pointer position
     this.updatePointer();
 
@@ -329,6 +338,9 @@ export class VoxelGame implements Game {
       (this.placePointerMesh.material as THREE.Material).dispose();
       this.placePointerMesh = null;
     }
+    
+    // Dispose Shigaraki character
+    this.shigaraki.dispose();
     
     this.voxelWorld.dispose();
     console.log('[VoxelGame] Disposed');
