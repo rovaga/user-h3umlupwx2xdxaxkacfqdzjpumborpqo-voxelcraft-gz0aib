@@ -21,6 +21,10 @@ export class VoxelGame implements Game {
   private destroyPointerMesh: THREE.LineSegments | null = null; // Visual pointer for block destruction (red)
   private placePointerMesh: THREE.LineSegments | null = null; // Visual pointer for block placement (green)
   private shigarakiModel: THREE.Group | null = null; // Shigaraki Tomura character model
+  private shigarakiVelocity: THREE.Vector3 = new THREE.Vector3(0, 0, 0); // Shigaraki's movement velocity
+  private shigarakiFollowSpeed: number = 4; // Speed at which Shigaraki follows the player
+  private decayingBlocks: Map<string, { startTime: number; mesh: THREE.Mesh }> = new Map(); // Blocks that are decaying
+  private dustParticles: THREE.Points[] = []; // Dust particle systems
 
   constructor(engine: Engine) {
     this.engine = engine;
@@ -267,6 +271,266 @@ export class VoxelGame implements Game {
     }
   }
 
+  private updateShigaraki(deltaTime: number): void {
+    if (!this.shigarakiModel) return;
+
+    // Get player position
+    const playerPos = this.cameraController.getPosition();
+    
+    // Calculate direction to player
+    const direction = new THREE.Vector3();
+    direction.subVectors(playerPos, this.shigarakiModel.position);
+    direction.y = 0; // Keep movement horizontal
+    
+    // Calculate distance to player
+    const distance = direction.length();
+    
+    // Only move if not too close to player (maintain some distance)
+    const minDistance = 2.0;
+    if (distance > minDistance) {
+      direction.normalize();
+      
+      // Apply follow speed
+      const moveSpeed = this.shigarakiFollowSpeed;
+      this.shigarakiVelocity.x = direction.x * moveSpeed;
+      this.shigarakiVelocity.z = direction.z * moveSpeed;
+      
+      // Move Shigaraki
+      const newPosition = this.shigarakiModel.position.clone();
+      newPosition.addScaledVector(this.shigarakiVelocity, deltaTime);
+      
+      // Simple ground check - keep Shigaraki on the ground
+      const groundY = this.getGroundHeight(newPosition.x, newPosition.z);
+      newPosition.y = groundY + 1; // Adjust based on model height
+      
+      // Check for block collisions
+      const collidingBlock = this.checkShigarakiBlockCollision(newPosition);
+      if (collidingBlock) {
+        // Mark block as decaying
+        this.markBlockForDecay(collidingBlock.x, collidingBlock.y, collidingBlock.z);
+      }
+      
+      // Update position
+      this.shigarakiModel.position.copy(newPosition);
+      
+      // Make Shigaraki face the direction of movement
+      if (direction.length() > 0.1) {
+        const angle = Math.atan2(direction.x, direction.z);
+        this.shigarakiModel.rotation.y = angle;
+      }
+    } else {
+      // Stop moving when close to player
+      this.shigarakiVelocity.set(0, 0, 0);
+    }
+  }
+
+  private getGroundHeight(x: number, z: number): number {
+    // Find the highest block at this x, z position
+    let maxY = -10;
+    for (let y = 20; y >= -10; y--) {
+      if (this.voxelWorld.getBlock(Math.floor(x), y, Math.floor(z))) {
+        maxY = y;
+        break;
+      }
+    }
+    return maxY + 1; // Return top of block
+  }
+
+  private checkShigarakiBlockCollision(position: THREE.Vector3): { x: number; y: number; z: number } | null {
+    if (!this.shigarakiModel) return null;
+    
+    // Shigaraki collision box (adjust based on model size)
+    const shigarakiWidth = 0.5;
+    const shigarakiHeight = 1.5;
+    
+    // Check blocks that could intersect with Shigaraki's bounding box
+    const minX = Math.floor(position.x - shigarakiWidth);
+    const maxX = Math.floor(position.x + shigarakiWidth);
+    const minY = Math.floor(position.y);
+    const maxY = Math.floor(position.y + shigarakiHeight);
+    const minZ = Math.floor(position.z - shigarakiWidth);
+    const maxZ = Math.floor(position.z + shigarakiWidth);
+    
+    for (let x = minX; x <= maxX; x++) {
+      for (let y = minY; y <= maxY; y++) {
+        for (let z = minZ; z <= maxZ; z++) {
+          if (this.voxelWorld.getBlock(x, y, z)) {
+            // Check if this block actually intersects with Shigaraki's bounding box
+            const blockMinX = x;
+            const blockMaxX = x + 1;
+            const blockMinY = y;
+            const blockMaxY = y + 1;
+            const blockMinZ = z;
+            const blockMaxZ = z + 1;
+            
+            const shigarakiMinX = position.x - shigarakiWidth;
+            const shigarakiMaxX = position.x + shigarakiWidth;
+            const shigarakiMinY = position.y;
+            const shigarakiMaxY = position.y + shigarakiHeight;
+            const shigarakiMinZ = position.z - shigarakiWidth;
+            const shigarakiMaxZ = position.z + shigarakiWidth;
+            
+            // AABB collision detection
+            if (shigarakiMinX < blockMaxX && shigarakiMaxX > blockMinX &&
+                shigarakiMinY < blockMaxY && shigarakiMaxY > blockMinY &&
+                shigarakiMinZ < blockMaxZ && shigarakiMaxZ > blockMinZ) {
+              return { x, y, z };
+            }
+          }
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  private markBlockForDecay(x: number, y: number, z: number): void {
+    const key = `${x},${y},${z}`;
+    
+    // Don't mark if already decaying
+    if (this.decayingBlocks.has(key)) {
+      return;
+    }
+    
+    // Find the mesh for this block
+    const blockMeshes = this.voxelWorld.getBlockMeshes();
+    const mesh = blockMeshes.find((m) => {
+      const pos = m.userData.blockPosition;
+      return pos && pos.x === x && pos.y === y && pos.z === z;
+    });
+    
+    if (!mesh) return;
+    
+    // Create dust particle effect
+    this.createDustEffect(x + 0.5, y + 0.5, z + 0.5);
+    
+    // Mark block as decaying
+    this.decayingBlocks.set(key, {
+      startTime: performance.now(),
+      mesh: mesh
+    });
+  }
+
+  private createDustEffect(x: number, y: number, z: number): void {
+    // Create particle system for dust
+    const particleCount = 50;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const velocities = new Float32Array(particleCount * 3);
+    
+    for (let i = 0; i < particleCount; i++) {
+      const i3 = i * 3;
+      // Start all particles at the block center
+      positions[i3] = x;
+      positions[i3 + 1] = y;
+      positions[i3 + 2] = z;
+      
+      // Random velocity for each particle
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.5 + Math.random() * 1.5;
+      velocities[i3] = Math.cos(angle) * speed;
+      velocities[i3 + 1] = Math.random() * 2 + 0.5; // Upward velocity
+      velocities[i3 + 2] = Math.sin(angle) * speed;
+    }
+    
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3));
+    
+    const material = new THREE.PointsMaterial({
+      color: 0x8b7355, // Dust color (brownish-gray)
+      size: 0.1,
+      transparent: true,
+      opacity: 0.8,
+    });
+    
+    const particles = new THREE.Points(geometry, material);
+    particles.userData.startTime = performance.now();
+    particles.userData.lifetime = 3.0; // 3 seconds
+    particles.userData.velocities = velocities;
+    
+    this.engine.scene.add(particles);
+    this.dustParticles.push(particles);
+  }
+
+  private updateDustParticles(deltaTime: number): void {
+    const currentTime = performance.now();
+    
+    for (let i = this.dustParticles.length - 1; i >= 0; i--) {
+      const particles = this.dustParticles[i];
+      const elapsed = (currentTime - particles.userData.startTime) / 1000;
+      const lifetime = particles.userData.lifetime;
+      
+      if (elapsed >= lifetime) {
+        // Remove expired particles
+        this.engine.scene.remove(particles);
+        particles.geometry.dispose();
+        (particles.material as THREE.Material).dispose();
+        this.dustParticles.splice(i, 1);
+        continue;
+      }
+      
+      // Update particle positions
+      const positions = particles.geometry.attributes.position.array as Float32Array;
+      const velocities = particles.userData.velocities as Float32Array;
+      
+      for (let j = 0; j < positions.length; j += 3) {
+        positions[j] += velocities[j] * deltaTime;
+        positions[j + 1] += velocities[j + 1] * deltaTime;
+        velocities[j + 1] -= 9.8 * deltaTime; // Apply gravity
+        positions[j + 2] += velocities[j + 2] * deltaTime;
+      }
+      
+      particles.geometry.attributes.position.needsUpdate = true;
+      
+      // Fade out particles over time
+      const fadeProgress = elapsed / lifetime;
+      const opacity = 0.8 * (1 - fadeProgress);
+      (particles.material as THREE.PointsMaterial).opacity = opacity;
+    }
+  }
+
+  private updateDecayingBlocks(deltaTime: number): void {
+    const currentTime = performance.now();
+    const decayDuration = 3000; // 3 seconds in milliseconds
+    
+    for (const [key, blockData] of this.decayingBlocks.entries()) {
+      // Check if block still exists (might have been removed by player)
+      const [x, y, z] = key.split(',').map(Number);
+      if (!this.voxelWorld.getBlock(x, y, z)) {
+        // Block was removed, clean up
+        this.decayingBlocks.delete(key);
+        continue;
+      }
+      
+      // Check if mesh is still valid (might have been disposed)
+      if (!blockData.mesh.parent) {
+        // Mesh was removed, clean up
+        this.decayingBlocks.delete(key);
+        continue;
+      }
+      
+      const elapsed = currentTime - blockData.startTime;
+      
+      if (elapsed >= decayDuration) {
+        // Remove the block
+        this.voxelWorld.removeBlock(x, y, z);
+        this.decayingBlocks.delete(key);
+      } else {
+        // Animate block decay (make it fade and shrink)
+        const progress = elapsed / decayDuration;
+        const scale = 1 - progress * 0.5; // Shrink to 50% size
+        const opacity = 1 - progress; // Fade out
+        
+        blockData.mesh.scale.set(scale, scale, scale);
+        
+        if (blockData.mesh.material instanceof THREE.MeshStandardMaterial) {
+          blockData.mesh.material.transparent = true;
+          blockData.mesh.material.opacity = opacity;
+        }
+      }
+    }
+  }
+
   private createPointer(): void {
     // Create wireframe box outlines to show where blocks will be placed/destroyed
     const geometry = new THREE.BoxGeometry(1.01, 1.01, 1.01); // Slightly larger than block to be visible
@@ -355,6 +619,15 @@ export class VoxelGame implements Game {
     // Update pointer position
     this.updatePointer();
 
+    // Update Shigaraki follow behavior
+    this.updateShigaraki(deltaTime);
+
+    // Update decaying blocks
+    this.updateDecayingBlocks(deltaTime);
+
+    // Update dust particles
+    this.updateDustParticles(deltaTime);
+
     // Handle mobile map taps for create/destroy
     if (this.engine.mobileInput.isMobileControlsActive()) {
       const tapResult = this.engine.mobileInput.consumeMapTap();
@@ -392,6 +665,14 @@ export class VoxelGame implements Game {
       this.placePointerMesh = null;
     }
     
+    // Clean up dust particles
+    for (const particles of this.dustParticles) {
+      this.engine.scene.remove(particles);
+      particles.geometry.dispose();
+      (particles.material as THREE.Material).dispose();
+    }
+    this.dustParticles = [];
+    
     // Clean up Shigaraki model
     if (this.shigarakiModel) {
       this.engine.scene.remove(this.shigarakiModel);
@@ -407,6 +688,9 @@ export class VoxelGame implements Game {
       });
       this.shigarakiModel = null;
     }
+    
+    // Clear decaying blocks
+    this.decayingBlocks.clear();
     
     this.voxelWorld.dispose();
     console.log('[VoxelGame] Disposed');
