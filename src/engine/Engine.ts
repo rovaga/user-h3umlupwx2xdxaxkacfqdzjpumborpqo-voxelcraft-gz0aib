@@ -48,6 +48,16 @@ export class Engine {
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(window.devicePixelRatio);
+    
+    // Configure renderer for PBR materials
+    // Use newer API (r152+) for color space, fallback to older API if needed
+    if ('outputColorSpace' in this.renderer) {
+      (this.renderer as any).outputColorSpace = THREE.SRGBColorSpace;
+    } else {
+      (this.renderer as any).outputEncoding = (THREE as any).sRGBEncoding;
+    }
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.0;
 
     if (config.enableShadows ?? true) {
       this.renderer.shadowMap.enabled = true;

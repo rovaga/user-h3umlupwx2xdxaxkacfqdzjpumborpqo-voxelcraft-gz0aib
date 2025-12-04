@@ -25,8 +25,8 @@ export class VoxelGame implements Game {
   constructor(engine: Engine) {
     this.engine = engine;
 
-    // Setup lighting
-    engine.createDefaultLighting();
+    // Setup PBR-friendly lighting for better material rendering
+    this.setupPBRLighting();
 
     // Initialize raycaster for block selection
     this.raycaster = new THREE.Raycaster();
@@ -53,6 +53,24 @@ export class VoxelGame implements Game {
     this.loadShigarakiModel();
 
     console.log('[VoxelGame] Initialized');
+  }
+
+  private setupPBRLighting(): void {
+    // Hemisphere light for ambient lighting (sky/ground)
+    const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+    this.engine.scene.add(hemisphereLight);
+
+    // Directional light for main illumination
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    directionalLight.position.set(5, 10, 7.5);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.camera.left = -60;
+    directionalLight.shadow.camera.right = 60;
+    directionalLight.shadow.camera.top = 60;
+    directionalLight.shadow.camera.bottom = -60;
+    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
+    this.engine.scene.add(directionalLight);
   }
 
   private generateTerrain(): void {
