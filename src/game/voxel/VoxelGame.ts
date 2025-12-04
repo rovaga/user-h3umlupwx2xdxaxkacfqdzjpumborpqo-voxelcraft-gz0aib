@@ -5,6 +5,7 @@
  */
 
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { Engine } from '../../engine/Engine';
 import type { Game } from '../../engine/Types';
 import { VoxelWorld } from './VoxelWorld';
@@ -19,12 +20,13 @@ export class VoxelGame implements Game {
   private selectedBlockType: number = 1; // Default block type
   private destroyPointerMesh: THREE.LineSegments | null = null; // Visual pointer for block destruction (red)
   private placePointerMesh: THREE.LineSegments | null = null; // Visual pointer for block placement (green)
+  private shigarakiModel: THREE.Group | null = null; // Shigaraki Tomura character model
 
   constructor(engine: Engine) {
     this.engine = engine;
 
-    // Setup lighting
-    engine.createDefaultLighting();
+    // Setup PBR-friendly lighting for better material rendering
+    this.setupPBRLighting();
 
     // Initialize raycaster for block selection
     this.raycaster = new THREE.Raycaster();
@@ -47,7 +49,28 @@ export class VoxelGame implements Game {
     // Create visual pointer for block placement/destruction
     this.createPointer();
 
+    // Load Shigaraki Tomura character model
+    this.loadShigarakiModel();
+
     console.log('[VoxelGame] Initialized');
+  }
+
+  private setupPBRLighting(): void {
+    // Hemisphere light for ambient lighting (sky/ground)
+    const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+    this.engine.scene.add(hemisphereLight);
+
+    // Directional light for main illumination
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    directionalLight.position.set(5, 10, 7.5);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.camera.left = -60;
+    directionalLight.shadow.camera.right = 60;
+    directionalLight.shadow.camera.top = 60;
+    directionalLight.shadow.camera.bottom = -60;
+    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
+    this.engine.scene.add(directionalLight);
   }
 
   private generateTerrain(): void {
@@ -205,6 +228,45 @@ export class VoxelGame implements Game {
     }
   }
 
+  private async loadShigarakiModel(): Promise<void> {
+    const modelUrl = this.engine.assetLoader.getUrl('tomura_shigaraki_fortnite.glb');
+    
+    if (!modelUrl) {
+      console.warn('[VoxelGame] Shigaraki model not found');
+      return;
+    }
+
+    try {
+      const loader = new GLTFLoader();
+      const gltf = await loader.loadAsync(modelUrl);
+      
+      // Get the model group
+      this.shigarakiModel = gltf.scene;
+      
+      // Enable shadows for the model
+      this.shigarakiModel.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      
+      // Position the model in the scene (adjust position as needed)
+      // Place it at a visible location, e.g., at origin or slightly offset
+      this.shigarakiModel.position.set(0, 1, -5);
+      
+      // Scale if needed (adjust based on model size)
+      // this.shigarakiModel.scale.set(1, 1, 1);
+      
+      // Add to scene
+      this.engine.scene.add(this.shigarakiModel);
+      
+      console.log('[VoxelGame] Shigaraki Tomura model loaded successfully');
+    } catch (error) {
+      console.error('[VoxelGame] Failed to load Shigaraki model:', error);
+    }
+  }
+
   private createPointer(): void {
     // Create wireframe box outlines to show where blocks will be placed/destroyed
     const geometry = new THREE.BoxGeometry(1.01, 1.01, 1.01); // Slightly larger than block to be visible
@@ -328,6 +390,22 @@ export class VoxelGame implements Game {
       this.placePointerMesh.geometry.dispose();
       (this.placePointerMesh.material as THREE.Material).dispose();
       this.placePointerMesh = null;
+    }
+    
+    // Clean up Shigaraki model
+    if (this.shigarakiModel) {
+      this.engine.scene.remove(this.shigarakiModel);
+      this.shigarakiModel.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          if (Array.isArray(child.material)) {
+            child.material.forEach((mat) => mat.dispose());
+          } else {
+            child.material.dispose();
+          }
+        }
+      });
+      this.shigarakiModel = null;
     }
     
     this.voxelWorld.dispose();
