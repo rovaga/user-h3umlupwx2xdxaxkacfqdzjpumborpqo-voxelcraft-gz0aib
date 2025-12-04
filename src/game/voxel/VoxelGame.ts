@@ -299,11 +299,11 @@ export class VoxelGame implements Game {
       const newPosition = this.shigarakiModel.position.clone();
       newPosition.addScaledVector(this.shigarakiVelocity, deltaTime);
       
-      // Simple ground check - keep Shigaraki on the ground
+      // Simple ground check - keep Shigaraki touching the ground
       const groundY = this.getGroundHeight(newPosition.x, newPosition.z);
-      newPosition.y = groundY + 1; // Adjust based on model height
+      newPosition.y = groundY; // Position at ground level so feet touch the ground
       
-      // Check for block collisions
+      // Check for block collisions (including blocks at ground level)
       const collidingBlock = this.checkShigarakiBlockCollision(newPosition);
       if (collidingBlock) {
         // Mark block as decaying
@@ -344,9 +344,10 @@ export class VoxelGame implements Game {
     const shigarakiHeight = 1.5;
     
     // Check blocks that could intersect with Shigaraki's bounding box
+    // Include blocks at ground level (y-1) since Shigaraki's feet are at ground level
     const minX = Math.floor(position.x - shigarakiWidth);
     const maxX = Math.floor(position.x + shigarakiWidth);
-    const minY = Math.floor(position.y);
+    const minY = Math.floor(position.y - 0.5); // Check blocks below feet (at ground level)
     const maxY = Math.floor(position.y + shigarakiHeight);
     const minZ = Math.floor(position.z - shigarakiWidth);
     const maxZ = Math.floor(position.z + shigarakiWidth);
@@ -365,7 +366,7 @@ export class VoxelGame implements Game {
             
             const shigarakiMinX = position.x - shigarakiWidth;
             const shigarakiMaxX = position.x + shigarakiWidth;
-            const shigarakiMinY = position.y;
+            const shigarakiMinY = position.y - 0.5; // Include ground level blocks
             const shigarakiMaxY = position.y + shigarakiHeight;
             const shigarakiMinZ = position.z - shigarakiWidth;
             const shigarakiMaxZ = position.z + shigarakiWidth;
