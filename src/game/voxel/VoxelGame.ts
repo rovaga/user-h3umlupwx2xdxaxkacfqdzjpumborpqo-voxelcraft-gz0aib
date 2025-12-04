@@ -21,6 +21,7 @@ export class VoxelGame implements Game {
   private selectedBlockType: number = 1; // Default block type
   private destroyPointerMesh: THREE.LineSegments | null = null; // Visual pointer for block destruction (red)
   private placePointerMesh: THREE.LineSegments | null = null; // Visual pointer for block placement (green)
+  private backgroundScreen: THREE.Mesh | null = null; // Background screen with image
 
   constructor(engine: Engine) {
     this.engine = engine;
@@ -52,6 +53,9 @@ export class VoxelGame implements Game {
 
     // Create visual pointer for block placement/destruction
     this.createPointer();
+
+    // Create background screen
+    this.createBackgroundScreen();
 
     console.log('[VoxelGame] Initialized');
   }
@@ -211,6 +215,44 @@ export class VoxelGame implements Game {
     }
   }
 
+  private async createBackgroundScreen(): Promise<void> {
+    try {
+      // Load the background texture
+      const texture = await this.engine.assetLoader.loadTexture('background.png');
+      
+      // Calculate aspect ratio of the image
+      const aspectRatio = texture.image.width / texture.image.height;
+      
+      // Create a large plane geometry for the screen
+      // Make it large enough to serve as a background (e.g., 100x100 units)
+      const screenWidth = 100;
+      const screenHeight = screenWidth / aspectRatio;
+      const geometry = new THREE.PlaneGeometry(screenWidth, screenHeight);
+      
+      // Create material with the texture
+      const material = new THREE.MeshBasicMaterial({
+        map: texture,
+        side: THREE.DoubleSide,
+      });
+      
+      // Create the mesh
+      this.backgroundScreen = new THREE.Mesh(geometry, material);
+      
+      // Position it in front of the camera as a background screen
+      // Camera starts at (0, 10, 0) and looks down negative Z
+      // Position screen at a distance in front, centered vertically
+      this.backgroundScreen.position.set(0, 10, -30);
+      // No rotation needed - plane faces camera by default when positioned correctly
+      
+      // Add to scene
+      this.engine.scene.add(this.backgroundScreen);
+      
+      console.log('[VoxelGame] Background screen created');
+    } catch (error) {
+      console.warn('[VoxelGame] Failed to create background screen:', error);
+    }
+  }
+
   private createPointer(): void {
     // Create wireframe box outlines to show where blocks will be placed/destroyed
     const geometry = new THREE.BoxGeometry(1.01, 1.01, 1.01); // Slightly larger than block to be visible
@@ -337,6 +379,19 @@ export class VoxelGame implements Game {
       this.placePointerMesh.geometry.dispose();
       (this.placePointerMesh.material as THREE.Material).dispose();
       this.placePointerMesh = null;
+    }
+    
+    // Clean up background screen
+    if (this.backgroundScreen) {
+      this.engine.scene.remove(this.backgroundScreen);
+      this.backgroundScreen.geometry.dispose();
+      if (this.backgroundScreen.material instanceof THREE.Material) {
+        this.backgroundScreen.material.dispose();
+        if ((this.backgroundScreen.material as THREE.MeshBasicMaterial).map) {
+          (this.backgroundScreen.material as THREE.MeshBasicMaterial).map?.dispose();
+        }
+      }
+      this.backgroundScreen = null;
     }
     
     // Dispose Shigaraki character
